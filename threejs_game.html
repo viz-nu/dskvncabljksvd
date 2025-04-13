@@ -19,6 +19,7 @@
 
 <body>
     <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
     <script>
         // Scene setup
         const scene = new THREE.Scene();
@@ -28,6 +29,15 @@
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         document.body.appendChild(renderer.domElement);
+
+        // Add OrbitControls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 5;
+        controls.maxDistance = 30;
+        controls.maxPolarAngle = Math.PI / 2;
+        controls.target.set(0, 0, 0);
 
         // Skybox setup
         const createSkybox = () => {
@@ -87,6 +97,11 @@
         player.castShadow = true;
         scene.add(player);
 
+        // Function to check if a position is safe (not too close to player)
+        function isPositionSafe(position, minDistance = 3) {
+            return player.position.distanceTo(position) >= minDistance;
+        }
+
         // Red cubes
         const redCubes = [];
         const numRedCubes = 5;
@@ -97,29 +112,40 @@
             specular: 0x111111
         });
 
+        // Generate safe positions for red cubes
         for (let i = 0; i < numRedCubes; i++) {
-            const redCube = new THREE.Mesh(redCubeGeometry, redCubeMaterial);
-            redCube.position.set(
-                Math.random() * 18 - 9,
-                0.5,
-                Math.random() * 18 - 9
-            );
-            redCube.castShadow = true;
-            redCubes.push({
-                mesh: redCube,
-                direction: new THREE.Vector3(
-                    Math.random() * 2 - 1,
-                    0,
-                    Math.random() * 2 - 1
-                ).normalize(),
-                speed: 0.05 + Math.random() * 0.05
-            });
-            scene.add(redCube);
+            let position;
+            let attempts = 0;
+            const maxAttempts = 100;
+
+            do {
+                position = new THREE.Vector3(
+                    Math.random() * 18 - 9,
+                    0.5,
+                    Math.random() * 18 - 9
+                );
+                attempts++;
+            } while (!isPositionSafe(position) && attempts < maxAttempts);
+
+            if (attempts < maxAttempts) {
+                const redCube = new THREE.Mesh(redCubeGeometry, redCubeMaterial);
+                redCube.position.copy(position);
+                redCube.castShadow = true;
+                redCubes.push({
+                    mesh: redCube,
+                    direction: new THREE.Vector3(
+                        Math.random() * 2 - 1,
+                        0,
+                        Math.random() * 2 - 1
+                    ).normalize(),
+                    speed: 0.05 + Math.random() * 0.05
+                });
+                scene.add(redCube);
+            }
         }
 
         // Camera setup
-        const cameraOffset = new THREE.Vector3(0, 10, 15);
-        camera.position.copy(cameraOffset);
+        camera.position.set(0, 10, 15);
         camera.lookAt(0, 0, 0);
 
         // Game state
@@ -165,14 +191,6 @@
 
         // Create skybox
         createSkybox();
-
-        // Update camera position to follow player
-        function updateCamera() {
-            const targetPosition = new THREE.Vector3();
-            targetPosition.copy(player.position).add(cameraOffset);
-            camera.position.lerp(targetPosition, 0.1);
-            camera.lookAt(player.position);
-        }
 
         // Handle jumping physics
         function updateJump() {
@@ -226,8 +244,8 @@
                     }
                 });
 
-                // Update camera position
-                updateCamera();
+                // Update controls
+                controls.update();
 
                 renderer.render(scene, camera);
             }
