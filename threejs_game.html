@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Cube Avoidance Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.132.2/build/three.min.js"></script>
+    <script>
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Skybox setup
+        // const createSkybox = () => {
+        //     const loader = new THREE.TextureLoader();
+        //     const materials = [
+        //         new THREE.MeshBasicMaterial({ map: loader.load('https://devday2.s3.ap-south-1.amazonaws.com/SnowMountain/px.png'), side: THREE.BackSide }),
+        //         new THREE.MeshBasicMaterial({ map: loader.load('https://devday2.s3.ap-south-1.amazonaws.com/SnowMountain/nx.png'), side: THREE.BackSide }),
+        //         new THREE.MeshBasicMaterial({ map: loader.load('https://devday2.s3.ap-south-1.amazonaws.com/SnowMountain/py.png'), side: THREE.BackSide }),
+        //         new THREE.MeshBasicMaterial({ map: loader.load('https://devday2.s3.ap-south-1.amazonaws.com/SnowMountain/ny.png'), side: THREE.BackSide }),
+        //         new THREE.MeshBasicMaterial({ map: loader.load('https://devday2.s3.ap-south-1.amazonaws.com/SnowMountain/pz.png'), side: THREE.BackSide }),
+        //         new THREE.MeshBasicMaterial({ map: loader.load('https://devday2.s3.ap-south-1.amazonaws.com/SnowMountain/nz.png'), side: THREE.BackSide })
+        //     ];
+        //     const skyboxGeometry = new THREE.BoxGeometry(1000, 1000, 1000);
+        //     const skybox = new THREE.Mesh(skyboxGeometry, materials);
+        //     scene.add(skybox);
+        // };
+
+        // Lighting
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+        directionalLight.position.set(0, 1, 0);
+        scene.add(directionalLight);
+
+        // Platform
+        const platformGeometry = new THREE.BoxGeometry(20, 1, 20);
+        // const platformMaterial = new THREE.MeshPhongMaterial({
+        //     color: 0x8B4513,
+        //     shininess: 30,
+        //     specular: 0x111111
+        // });
+        const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+        platform.position.y = -0.5;
+        scene.add(platform);
+
+        // Player cube (green)
+        const playerGeometry = new THREE.BoxGeometry(1, 1, 1);
+        // const playerMaterial = new THREE.MeshPhongMaterial({
+        //     color: 0x00ff00,
+        //     shininess: 100,
+        //     specular: 0x111111
+        // });
+        const player = new THREE.Mesh(playerGeometry, playerMaterial);
+        player.position.y = 0.5;
+        scene.add(player);
+
+        // Red cubes
+        const redCubes = [];
+        const numRedCubes = 5;
+        const redCubeGeometry = new THREE.BoxGeometry(1, 1, 1);
+        // const redCubeMaterial = new THREE.MeshPhongMaterial({
+        //     color: 0xff0000,
+        //     shininess: 100,
+        //     specular: 0x111111
+        // });
+
+        for (let i = 0; i < numRedCubes; i++) {
+            const redCube = new THREE.Mesh(redCubeGeometry, redCubeMaterial);
+            redCube.position.set(
+                Math.random() * 18 - 9,
+                0.5,
+                Math.random() * 18 - 9
+            );
+            redCubes.push({
+                mesh: redCube,
+                direction: new THREE.Vector3(
+                    Math.random() * 2 - 1,
+                    0,
+                    Math.random() * 2 - 1
+                ).normalize(),
+                speed: 0.05 + Math.random() * 0.05
+            });
+            scene.add(redCube);
+        }
+
+        // Camera position
+        camera.position.set(0, 10, 15);
+        camera.lookAt(0, 0, 0);
+
+        // Game state
+        let gameOver = false;
+        const playerSpeed = 0.2;
+        const platformSize = 10;
+
+        // Keyboard controls
+        const keys = {
+            ArrowUp: false,
+            ArrowDown: false,
+            ArrowLeft: false,
+            ArrowRight: false
+        };
+
+        document.addEventListener('keydown', (event) => {
+            if (keys.hasOwnProperty(event.key)) {
+                keys[event.key] = true;
+            }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            if (keys.hasOwnProperty(event.key)) {
+                keys[event.key] = false;
+            }
+        });
+
+        // Collision detection
+        function checkCollision(cube1, cube2) {
+            const distance = cube1.position.distanceTo(cube2.position);
+            // return distance < 1.5;
+        }
+
+        // Create skybox
+        // createSkybox();
+
+        // Game loop
+        function animate() {
+            if (!gameOver) {
+                requestAnimationFrame(animate);
+
+                // Player movement
+                if (keys.ArrowUp) player.position.z -= playerSpeed;
+                if (keys.ArrowDown) player.position.z += playerSpeed;
+                if (keys.ArrowLeft) player.position.x -= playerSpeed;
+                if (keys.ArrowRight) player.position.x += playerSpeed;
+
+                // Keep player on platform
+                player.position.x = Math.max(-platformSize, Math.min(platformSize, player.position.x));
+                player.position.z = Math.max(-platformSize, Math.min(platformSize, player.position.z));
+
+                // Move red cubes
+                redCubes.forEach(cube => {
+                    cube.mesh.position.add(cube.direction.clone().multiplyScalar(cube.speed));
+
+                    // Bounce off platform edges
+                    if (Math.abs(cube.mesh.position.x) > platformSize) {
+                        cube.direction.x *= -1;
+                    }
+                    if (Math.abs(cube.mesh.position.z) > platformSize) {
+                        cube.direction.z *= -1;
+                    }
+
+                    // Check collision with player
+                    if (checkCollision(player, cube.mesh)) {
+                        gameOver = true;
+                        alert('Game Over! You collided with a red cube.');
+                    }
+                });
+
+                renderer.render(scene, camera);
+            }
+        }
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // Start the game
+        animate();
+    </script>
+</body>
+
+</html>
